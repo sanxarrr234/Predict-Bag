@@ -20,10 +20,11 @@ async function getPools(timeframe?: string) {
 export default async function PoolsPage({
   searchParams,
 }: {
-  searchParams: { timeframe?: string };
+  searchParams: Promise<{ timeframe?: string }>;
 }) {
-  const pools = await getPools(searchParams.timeframe);
-  const active = searchParams.timeframe ?? "all";
+  const { timeframe } = await searchParams;
+  const pools = await getPools(timeframe);
+  const active = timeframe ?? "all";
 
   const filters = [
     { key: "all", label: "ALL" },
