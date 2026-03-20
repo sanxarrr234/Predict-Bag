@@ -9,7 +9,7 @@ Deno.serve(async () => {
   try {
     const now = new Date().toISOString();
 
-    // Lock all open pools that have passed their deadline
+    
     const { data, error } = await supabase
       .from("pools")
       .update({ status: "locked" })
