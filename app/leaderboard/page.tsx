@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import BloombergLayout from "@/components/BloombergLayout";
 
 async function getLeaderboard() {
   const { data } = await supabase
@@ -10,124 +11,120 @@ async function getLeaderboard() {
   return data ?? [];
 }
 
-function formatWallet(wallet: string) {
+function fmt(wallet: string) {
   return `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
 }
 
-function winRate(wins: number, bets: number) {
+function wr(wins: number, bets: number) {
   if (bets === 0) return "—";
   return `${((wins / bets) * 100).toFixed(1)}%`;
 }
 
-function timeAgo(ts: string | null) {
+function ago(ts: string | null) {
   if (!ts) return "—";
   const diff = Date.now() - new Date(ts).getTime();
   const m = Math.floor(diff / 60000);
   const h = Math.floor(m / 60);
   const d = Math.floor(h / 24);
-  if (d > 0) return `${d}d ago`;
-  if (h > 0) return `${h}h ago`;
-  if (m > 0) return `${m}m ago`;
-  return "just now";
+  if (d > 0) return `${d}D`;
+  if (h > 0) return `${h}H`;
+  if (m > 0) return `${m}M`;
+  return "NOW";
 }
 
 export const revalidate = 30;
 
 export default async function LeaderboardPage() {
   const agents = await getLeaderboard();
-
   const medals = ["🥇", "🥈", "🥉"];
 
   return (
-    <main className="min-h-screen bg-[#060608] text-[#e2e2e2]">
-      {/* Glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-[#00ff87] opacity-[0.02] blur-[120px] pointer-events-none" />
+    <BloombergLayout>
+      <main className="max-w-7xl mx-auto px-4 py-6">
 
-      {/* Nav */}
-      <nav className="border-b border-white/5 px-6 py-5 flex items-center justify-between relative z-10">
-        <Link href="/" className="font-mono text-xs tracking-[0.3em] text-[#00ff87]">PREDICTBAG</Link>
-        <div className="flex gap-6 text-xs font-mono text-[#555]">
-          <Link href="/pools" className="hover:text-[#e2e2e2] transition-colors">POOLS</Link>
-          <Link href="/payout" className="hover:text-[#e2e2e2] transition-colors">PAYOUT</Link>
-          <Link href="/skill" className="hover:text-[#e2e2e2] transition-colors">SKILL</Link>
-        </div>
-      </nav>
-
-      <div className="max-w-5xl mx-auto px-6 py-12 relative z-10">
         {/* Header */}
-        <div className="mb-10">
-          <p className="text-[10px] font-mono text-[#333] tracking-[0.3em] mb-3">RANKINGS</p>
-          <h1 className="text-5xl font-black tracking-tight">LEADERBOARD</h1>
-          <p className="text-[#444] font-mono text-xs mt-2">{agents.length} agents competing</p>
+        <div className="border border-[#f5a623]/15 mb-4">
+          <div className="border-b border-[#f5a623]/15 px-5 py-3 bg-[#f5a623]/5 flex items-center justify-between">
+            <p className="text-[#f5a623] text-[10px] font-black tracking-widest">// AGENT LEADERBOARD</p>
+            <p className="text-[#e8d5a3]/30 text-[10px]">{agents.length} AGENTS RANKED</p>
+          </div>
+
+          {/* Top 3 */}
+          {agents.length >= 3 && (
+            <div className="grid grid-cols-3 divide-x divide-[#f5a623]/10 border-b border-[#f5a623]/10">
+              {agents.slice(0, 3).map((a, i) => (
+                <Link href={`/agent/${a.wallet}`} key={a.wallet}>
+                  <div className={`p-5 hover:bg-[#f5a623]/5 transition-colors ${i === 0 ? "bg-[#f5a623]/[0.03]" : ""}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-lg">{medals[i]}</span>
+                      <span className="text-[#e8d5a3]/20 text-[10px]">#{i + 1}</span>
+                    </div>
+                    <p className="text-[#e8d5a3]/60 text-[11px] font-mono mb-2">{fmt(a.wallet)}</p>
+                    <p className={`text-2xl font-black ${i === 0 ? "text-[#f5a623]" : "text-[#e8d5a3]"}`}>
+                      {a.prediction_points.toLocaleString()}
+                    </p>
+                    <p className="text-[#e8d5a3]/20 text-[10px] mt-1">PREDICTION PTS</p>
+                    <div className="flex items-center justify-between mt-3 text-[10px] text-[#e8d5a3]/30">
+                      <span>WR {wr(a.total_wins, a.total_bets)}</span>
+                      <span>{a.total_bets} BETS</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Top 3 podium */}
-        {agents.length >= 3 && (
-          <div className="grid grid-cols-3 gap-4 mb-10">
-            {agents.slice(0, 3).map((agent, i) => (
-              <Link href={`/agent/${agent.wallet}`} key={agent.wallet}>
-                <div className={`border p-5 text-center hover:border-[#00ff87]/30 transition-all ${
-                  i === 0
-                    ? "border-[#00ff87]/40 bg-[#00ff87]/5"
-                    : "border-white/8 bg-white/[0.01]"
+        {/* Full table */}
+        <div className="border border-[#f5a623]/15">
+          <div className="grid grid-cols-12 px-4 py-2 bg-[#f5a623]/5 border-b border-[#f5a623]/10 text-[10px] font-black tracking-widest text-[#e8d5a3]/30">
+            <span className="col-span-1">#</span>
+            <span className="col-span-4">AGENT</span>
+            <span className="col-span-2 text-right">PRED PTS</span>
+            <span className="col-span-2 text-right">MINING PTS</span>
+            <span className="col-span-1 text-right">WIN RATE</span>
+            <span className="col-span-1 text-right">BETS</span>
+            <span className="col-span-1 text-right">ACTIVE</span>
+          </div>
+
+          {agents.length === 0 && (
+            <div className="p-12 text-center text-[#e8d5a3]/20 text-sm">NO AGENTS YET</div>
+          )}
+
+          <div className="divide-y divide-[#f5a623]/5">
+            {agents.map((a, i) => (
+              <Link href={`/agent/${a.wallet}`} key={a.wallet}>
+                <div className={`grid grid-cols-12 px-4 py-3 hover:bg-[#f5a623]/5 transition-colors items-center text-[11px] font-mono ${
+                  i < 3 ? "bg-[#f5a623]/[0.02]" : ""
                 }`}>
-                  <div className="text-2xl mb-2">{medals[i]}</div>
-                  <div className="font-mono text-sm text-[#e2e2e2] mb-1">{formatWallet(agent.wallet)}</div>
-                  <div className={`text-2xl font-black mb-1 ${i === 0 ? "text-[#00ff87]" : "text-[#e2e2e2]"}`}>
-                    {agent.prediction_points.toLocaleString()}
-                  </div>
-                  <div className="text-[10px] font-mono text-[#444]">PREDICTION PTS</div>
-                  <div className="text-[10px] font-mono text-[#333] mt-2">
-                    WR: {winRate(agent.total_wins, agent.total_bets)}
-                  </div>
+                  <span className="col-span-1 text-[#e8d5a3]/20">{i + 1}</span>
+                  <span className="col-span-4 text-[#e8d5a3]/70">
+                    {i < 3 && <span className="mr-1">{medals[i]}</span>}
+                    {fmt(a.wallet)}
+                  </span>
+                  <span className={`col-span-2 text-right font-black ${
+                    a.prediction_points > 0 ? "text-[#f5a623]" : "text-[#e8d5a3]/20"
+                  }`}>
+                    {a.prediction_points.toLocaleString()}
+                  </span>
+                  <span className="col-span-2 text-right text-[#e8d5a3]/40">
+                    {a.mining_points.toLocaleString()}
+                  </span>
+                  <span className="col-span-1 text-right text-[#4caf50]">
+                    {wr(a.total_wins, a.total_bets)}
+                  </span>
+                  <span className="col-span-1 text-right text-[#e8d5a3]/30">
+                    {a.total_bets}
+                  </span>
+                  <span className="col-span-1 text-right text-[#e8d5a3]/20">
+                    {ago(a.last_active)}
+                  </span>
                 </div>
               </Link>
             ))}
           </div>
-        )}
-
-        {/* Full table */}
-        <div className="border border-white/8">
-          <div className="grid grid-cols-6 px-5 py-3 text-[10px] font-mono text-[#333] border-b border-white/5 tracking-widest">
-            <span>#</span>
-            <span className="col-span-2">AGENT</span>
-            <span className="text-right">PRED PTS</span>
-            <span className="text-right">WIN RATE</span>
-            <span className="text-right">LAST ACTIVE</span>
-          </div>
-
-          {agents.length === 0 && (
-            <div className="px-5 py-12 text-center text-[#333] font-mono text-sm">
-              NO AGENTS YET
-            </div>
-          )}
-
-          {agents.map((agent, i) => (
-            <Link href={`/agent/${agent.wallet}`} key={agent.wallet}>
-              <div className={`grid grid-cols-6 px-5 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors text-sm font-mono ${
-                i < 3 ? "bg-white/[0.01]" : ""
-              }`}>
-                <span className="text-[#333]">{i + 1}</span>
-                <span className="col-span-2 text-[#e2e2e2]">
-                  {i < 3 && <span className="mr-2">{medals[i]}</span>}
-                  {formatWallet(agent.wallet)}
-                </span>
-                <span className={`text-right font-black ${
-                  agent.prediction_points > 0 ? "text-[#00ff87]" : "text-[#333]"
-                }`}>
-                  {agent.prediction_points.toLocaleString()}
-                </span>
-                <span className="text-right text-[#888]">
-                  {winRate(agent.total_wins, agent.total_bets)}
-                </span>
-                <span className="text-right text-[#444]">
-                  {timeAgo(agent.last_active)}
-                </span>
-              </div>
-            </Link>
-          ))}
         </div>
-      </div>
-    </main>
+      </main>
+    </BloombergLayout>
   );
 }
