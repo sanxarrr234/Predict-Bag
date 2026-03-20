@@ -1,222 +1,209 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
+import BloombergLayout from "@/components/BloombergLayout";
 
-async function getAgent(wallet: string) {
-  const { data } = await supabase
-    .from("agents")
-    .select("*")
-    .eq("wallet", wallet)
-    .single();
-  return data;
-}
-
-async function getBetHistory(wallet: string) {
-  const { data } = await supabase
-    .from("bets")
-    .select("*, pools(token_name, token_symbol, token_image_url, question, direction, timeframe, status, outcome, closes_at)")
-    .eq("wallet", wallet)
-    .order("placed_at", { ascending: false })
-    .limit(50);
-  return data ?? [];
-}
-
-async function getRank(wallet: string, predictionPoints: number) {
-  const { count } = await supabase
-    .from("agents")
-    .select("id", { count: "exact", head: true })
-    .gt("prediction_points", predictionPoints);
-  return (count ?? 0) + 1;
-}
-
-function formatWallet(wallet: string) {
-  return `${wallet.slice(0, 8)}...${wallet.slice(-6)}`;
-}
-
-function timeAgo(ts: string | null) {
+function fmt(wallet: string) { return `${wallet.slice(0, 8)}...${wallet.slice(-6)}`; }
+function ago(ts: string | null) {
   if (!ts) return "—";
   const diff = Date.now() - new Date(ts).getTime();
-  const m = Math.floor(diff / 60000);
-  const h = Math.floor(m / 60);
-  const d = Math.floor(h / 24);
-  if (d > 0) return `${d}d ago`;
-  if (h > 0) return `${h}h ago`;
-  if (m > 0) return `${m}m ago`;
-  return "just now";
+  const m = Math.floor(diff / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
+  if (d > 0) return `${d}d ago`; if (h > 0) return `${h}h ago`; if (m > 0) return `${m}m ago`; return "just now";
 }
-
-function formatMC(mc: number): string {
-  if (mc >= 1_000_000_000) return `$${(mc / 1_000_000_000).toFixed(2)}B`;
-  if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(2)}M`;
-  if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
+function fmc(mc: number) {
+  if (mc >= 1e9) return `$${(mc / 1e9).toFixed(2)}B`;
+  if (mc >= 1e6) return `$${(mc / 1e6).toFixed(2)}M`;
+  if (mc >= 1e3) return `$${(mc / 1e3).toFixed(1)}K`;
   return `$${mc.toFixed(0)}`;
 }
 
 export const revalidate = 30;
 
-export default async function AgentPage({
-  params,
-}: {
-  params: Promise<{ wallet: string }>;
-}) {
+export default async function AgentPage({ params }: { params: Promise<{ wallet: string }> }) {
   const { wallet } = await params;
-  const [agent, bets] = await Promise.all([
-    getAgent(wallet),
-    getBetHistory(wallet),
+
+  const [{ data: agent }, { data: bets }] = await Promise.all([
+    supabase.from("agents").select("*").eq("wallet", wallet).single(),
+    supabase.from("bets")
+      .select("*, pools(token_name, token_symbol, token_image_url, question, direction, timeframe, status, outcome, closes_at, current_mc, target_mc)")
+      .eq("wallet", wallet)
+      .order("placed_at", { ascending: false })
+      .limit(50),
   ]);
 
   if (!agent) notFound();
 
-  const rank = await getRank(wallet, agent.prediction_points);
-  const winRate = agent.total_bets > 0
-    ? ((agent.total_wins / agent.total_bets) * 100).toFixed(1)
-    : "0.0";
+  const { count: aboveCount } = await supabase
+    .from("agents").select("id", { count: "exact", head: true })
+    .gt("prediction_points", agent.prediction_points);
 
-  const recentWins = bets.filter(b => b.is_correct === true).length;
-  const recentLosses = bets.filter(b => b.is_correct === false).length;
+  const rank = (aboveCount ?? 0) + 1;
+  const winRate = agent.total_bets > 0 ? ((agent.total_wins / agent.total_bets) * 100).toFixed(1) : "0.0";
+  const betList = bets ?? [];
 
   return (
-    <main className="min-h-screen bg-[#060608] text-[#e2e2e2]">
-      <div className="fixed top-0 right-0 w-[400px] h-[400px] bg-[#00ff87] opacity-[0.015] blur-[100px] pointer-events-none" />
-
-      {/* Nav */}
-      <nav className="border-b border-white/5 px-6 py-5 flex items-center justify-between relative z-10">
-        <Link href="/" className="font-mono text-xs tracking-[0.3em] text-[#00ff87]">PREDICTBAG</Link>
-        <Link href="/leaderboard" className="text-xs font-mono text-[#555] hover:text-[#e2e2e2] transition-colors">
-          ← LEADERBOARD
-        </Link>
-      </nav>
-
-      <div className="max-w-4xl mx-auto px-6 py-12 relative z-10">
+    <BloombergLayout>
+      <main className="max-w-7xl mx-auto px-4 py-6">
 
         {/* Agent header */}
-        <div className="border border-white/8 p-8 mb-8 bg-white/[0.01]">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <p className="text-[10px] font-mono text-[#333] tracking-widest mb-2">AGENT PROFILE</p>
-              <h1 className="font-mono text-2xl text-[#e2e2e2] font-bold">{formatWallet(wallet)}</h1>
-              <p className="text-[#444] font-mono text-xs mt-1">{wallet}</p>
-            </div>
-            <div className="text-right">
-              <div className="text-[10px] font-mono text-[#333] mb-1">RANK</div>
-              <div className="text-4xl font-black text-[#00ff87]">#{rank}</div>
+        <div className="border border-[#f5a623]/15 mb-4">
+          <div className="border-b border-[#f5a623]/15 px-5 py-3 bg-[#f5a623]/5 flex items-center justify-between flex-wrap gap-2">
+            <p className="text-[#f5a623] text-[10px] font-black tracking-widest">// AGENT PROFILE</p>
+            <div className="flex items-center gap-2">
+              <span className="text-[#e8d5a3]/20 text-[10px]">RANK</span>
+              <span className="text-[#f5a623] text-lg font-black">#{rank}</span>
             </div>
           </div>
 
-          {/* Stats grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: "MINING PTS", value: agent.mining_points.toLocaleString(), accent: true },
-              { label: "PRED PTS", value: agent.prediction_points.toLocaleString(), accent: false },
-              { label: "WIN RATE", value: `${winRate}%`, accent: false },
-              { label: "TOTAL BETS", value: agent.total_bets.toLocaleString(), accent: false },
-            ].map((s) => (
-              <div key={s.label} className="border border-white/8 p-4 bg-white/[0.01]">
-                <div className="text-[10px] font-mono text-[#333] mb-2 tracking-widest">{s.label}</div>
-                <div className={`text-2xl font-black ${s.accent ? "text-[#00ff87]" : "text-[#e2e2e2]"}`}>
-                  {s.value}
+          <div className="p-5">
+            <p className="text-[#e8d5a3]/60 font-mono text-sm mb-1">{fmt(wallet)}</p>
+            <p className="text-[#e8d5a3]/20 font-mono text-[10px] break-all mb-5">{wallet}</p>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 border border-[#f5a623]/10 divide-y sm:divide-y-0 sm:divide-x divide-[#f5a623]/10">
+              {[
+                { label: "MINING PTS", value: agent.mining_points.toLocaleString(), accent: true },
+                { label: "PRED PTS", value: agent.prediction_points.toLocaleString(), accent: false },
+                { label: "WIN RATE", value: `${winRate}%`, accent: false },
+                { label: "TOTAL BETS", value: agent.total_bets.toLocaleString(), accent: false },
+              ].map(s => (
+                <div key={s.label} className="p-4">
+                  <p className="text-[#e8d5a3]/20 text-[10px] tracking-widest mb-2">{s.label}</p>
+                  <p className={`text-2xl font-black ${s.accent ? "text-[#f5a623]" : "text-[#e8d5a3]"}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Win bar */}
+            {agent.total_bets > 0 && (
+              <div className="mt-4">
+                <div className="flex justify-between text-[10px] font-mono text-[#e8d5a3]/20 mb-1.5">
+                  <span className="text-[#4caf50]">{agent.total_wins} WINS</span>
+                  <span className="text-[#f44336]">{agent.total_bets - agent.total_wins} LOSSES</span>
+                </div>
+                <div className="h-1 bg-[#f44336]/20">
+                  <div className="h-full bg-[#4caf50] transition-all"
+                    style={{ width: `${(agent.total_wins / agent.total_bets) * 100}%` }} />
                 </div>
               </div>
-            ))}
-          </div>
+            )}
 
-          {/* Win/Loss bar */}
-          {agent.total_bets > 0 && (
-            <div className="mt-6">
-              <div className="flex justify-between text-[10px] font-mono text-[#444] mb-2">
-                <span>{agent.total_wins} WINS</span>
-                <span>{agent.total_bets - agent.total_wins} LOSSES</span>
-              </div>
-              <div className="h-1.5 bg-white/5 overflow-hidden">
-                <div
-                  className="h-full bg-[#00ff87] transition-all"
-                  style={{ width: `${(agent.total_wins / agent.total_bets) * 100}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4 text-[10px] font-mono text-[#333]">
-            LAST ACTIVE: {timeAgo(agent.last_active)}
+            <p className="text-[#e8d5a3]/15 text-[10px] mt-3">LAST ACTIVE: {ago(agent.last_active)}</p>
           </div>
         </div>
 
         {/* Bet history */}
-        <div>
-          <p className="text-[10px] font-mono text-[#333] tracking-widest mb-4">BET HISTORY</p>
+        <div className="border border-[#f5a623]/15">
+          <div className="border-b border-[#f5a623]/15 px-5 py-3 bg-[#f5a623]/5 flex items-center justify-between">
+            <p className="text-[#f5a623] text-[10px] font-black tracking-widest">// BET HISTORY</p>
+            <p className="text-[#e8d5a3]/20 text-[10px]">{betList.length} RECORDS</p>
+          </div>
 
-          {bets.length === 0 && (
-            <div className="border border-white/8 p-12 text-center text-[#333] font-mono text-sm">
-              NO BETS YET
+          {betList.length === 0 && (
+            <div className="p-12 text-center text-[#e8d5a3]/20 text-sm font-mono">NO BETS YET</div>
+          )}
+
+          {/* Table header */}
+          {betList.length > 0 && (
+            <div className="hidden md:grid grid-cols-12 px-4 py-2 border-b border-[#f5a623]/10 text-[10px] font-black tracking-widest text-[#e8d5a3]/20">
+              <span className="col-span-2">TOKEN</span>
+              <span className="col-span-1">DIR</span>
+              <span className="col-span-1">TF</span>
+              <span className="col-span-3">QUESTION</span>
+              <span className="col-span-1 text-right">BET</span>
+              <span className="col-span-1 text-right">PRED</span>
+              <span className="col-span-1 text-right">EARNED</span>
+              <span className="col-span-2 text-right">RESULT</span>
             </div>
           )}
 
-          <div className="space-y-2">
-            {bets.map((bet) => {
+          <div className="divide-y divide-[#f5a623]/5">
+            {betList.map(bet => {
               const pool = bet.pools as any;
-              const isResolved = pool?.status === "resolved";
               const isWin = bet.is_correct === true;
               const isLoss = bet.is_correct === false;
-              const isPending = bet.is_correct === null;
+              const isUp = pool?.direction === "up";
 
               return (
-                <div key={bet.id} className={`border p-4 flex items-center gap-4 ${
-                  isWin ? "border-[#00ff87]/20 bg-[#00ff87]/5" :
-                  isLoss ? "border-white/5 bg-white/[0.01]" :
-                  "border-white/5 bg-white/[0.01]"
+                <div key={bet.id} className={`grid grid-cols-12 px-4 py-3 items-center gap-1 text-[11px] font-mono ${
+                  isWin ? "bg-[#4caf50]/5" : ""
                 }`}>
-                  {/* Token image */}
-                  <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 flex items-center justify-center">
+                  {/* Token */}
+                  <div className="col-span-12 md:col-span-2 flex items-center gap-2">
                     {pool?.token_image_url ? (
-                      <img src={pool.token_image_url} alt="" className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                      <img src={pool.token_image_url} alt="" className="w-6 h-6 rounded-full border border-[#f5a623]/20 flex-shrink-0 object-cover"
+                        onError={(e: any) => e.target.style.display = "none"} />
                     ) : (
-                      <span className="text-[10px] font-mono text-[#444]">
-                        {pool?.token_symbol?.slice(0, 2) ?? "?"}
-                      </span>
+                      <div className="w-6 h-6 rounded-full border border-[#f5a623]/20 bg-[#f5a623]/5 flex-shrink-0 flex items-center justify-center text-[9px] text-[#f5a623]/40">
+                        {pool?.token_symbol?.slice(0, 2)}
+                      </div>
+                    )}
+                    <span className="text-[#e8d5a3]/70 font-bold">{pool?.token_symbol}</span>
+                  </div>
+
+                  {/* Direction */}
+                  <div className="col-span-2 md:col-span-1">
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 ${isUp ? "text-[#4caf50] bg-[#4caf50]/10" : "text-[#f44336] bg-[#f44336]/10"}`}>
+                      {isUp ? "↑UP" : "↓DN"}
+                    </span>
+                  </div>
+
+                  {/* Timeframe */}
+                  <div className="col-span-2 md:col-span-1">
+                    <span className="text-[#e8d5a3]/30 text-[10px]">
+                      {pool?.timeframe === "fast" ? "2H" : pool?.timeframe === "medium" ? "6H" : "12H"}
+                    </span>
+                  </div>
+
+                  {/* Question */}
+                  <div className="col-span-12 md:col-span-3 text-[#e8d5a3]/30 text-[10px] leading-relaxed">
+                    {pool?.question}
+                  </div>
+
+                  {/* Bet amount */}
+                  <div className="col-span-4 md:col-span-1 text-right text-[#e8d5a3]/50">
+                    {bet.amount}
+                  </div>
+
+                  {/* Prediction */}
+                  <div className="col-span-4 md:col-span-1 text-right">
+                    <span className={`font-black ${bet.prediction === "yes" ? "text-[#4caf50]" : "text-[#f44336]"}`}>
+                      {bet.prediction.toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Earned */}
+                  <div className="col-span-4 md:col-span-1 text-right">
+                    {isWin ? (
+                      <span className="text-[#f5a623] font-black">+{bet.prediction_points_earned}</span>
+                    ) : (
+                      <span className="text-[#e8d5a3]/15">—</span>
                     )}
                   </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-bold text-sm text-[#e2e2e2]">{pool?.token_symbol ?? "?"}</span>
-                      <span className={`text-[10px] font-mono px-1.5 py-0.5 border ${
-                        pool?.direction === "up"
-                          ? "text-[#00ff87] border-[#00ff87]/20"
-                          : "text-[#ff6b35] border-[#ff6b35]/20"
-                      }`}>
-                        {pool?.direction === "up" ? "↑ UP" : "↓ DOWN"}
-                      </span>
-                      <span className="text-[10px] font-mono text-[#444]">{pool?.timeframe?.toUpperCase()}</span>
-                    </div>
-                    <p className="text-[11px] text-[#444] font-mono truncate">{pool?.question}</p>
-                  </div>
-
-                  {/* Bet details */}
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-mono mb-1">
-                      <span className={`font-bold ${bet.prediction === "yes" ? "text-[#00ff87]" : "text-[#ff6b35]"}`}>
-                        {bet.prediction.toUpperCase()}
-                      </span>
-                      <span className="text-[#444] ml-2">{bet.amount} pts</span>
-                    </div>
-                    <div className="text-[10px] font-mono">
-                      {isPending && <span className="text-[#555]">PENDING</span>}
-                      {isWin && (
-                        <span className="text-[#00ff87]">
-                          WON +{bet.prediction_points_earned} pts
-                        </span>
-                      )}
-                      {isLoss && <span className="text-[#444]">LOST</span>}
-                    </div>
+                  {/* Result */}
+                  <div className="col-span-12 md:col-span-2 text-right">
+                    {bet.is_correct === null ? (
+                      <span className="text-[#e8d5a3]/20">PENDING</span>
+                    ) : isWin ? (
+                      <span className="text-[#4caf50] font-black">WIN ✓</span>
+                    ) : (
+                      <span className="text-[#f44336]">LOSS ✗</span>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
-      </div>
-    </main>
+
+        <div className="mt-4">
+          <Link href="/leaderboard"
+            className="text-[#e8d5a3]/20 text-[10px] font-mono hover:text-[#f5a623] transition-colors">
+            ← BACK TO LEADERBOARD
+          </Link>
+        </div>
+      </main>
+    </BloombergLayout>
   );
 }
