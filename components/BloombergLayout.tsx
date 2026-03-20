@@ -29,7 +29,7 @@ function Ticker() {
   useEffect(() => {
     supabase
       .from("pools")
-      .select("token_symbol, direction, timeframe, current_mc, target_mc")
+      .select("token_symbol, direction, timeframe")
       .eq("status", "open")
       .limit(20)
       .then(({ data }) => setPools(data ?? []));
@@ -37,7 +37,7 @@ function Ticker() {
 
   if (pools.length === 0) return null;
 
-  const items = [...pools, ...pools]; // duplicate for seamless scroll
+  const items = [...pools, ...pools];
 
   return (
     <div className="bg-[#0d0d0d] border-b border-[#f5a623]/15 overflow-hidden">
@@ -49,7 +49,7 @@ function Ticker() {
           <div className="flex gap-8 px-4 py-1.5 animate-ticker whitespace-nowrap text-[11px] font-mono">
             {items.map((p, i) => (
               <span key={i} className={`flex-shrink-0 ${p.direction === "up" ? "text-[#4caf50]" : "text-[#f44336]"}`}>
-                {p.token_symbol} {p.direction === "up" ? "↑" : "↓"} {p.timeframe.toUpperCase()}
+                {p.token_symbol} {p.direction === "up" ? "↑" : "↓"} {p.timeframe?.toUpperCase()}
               </span>
             ))}
           </div>
@@ -59,7 +59,19 @@ function Ticker() {
   );
 }
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+function PredictBagLogo({ size = 28 }: { size?: number }) {
+  return (
+    <img
+      src="/logo.png"
+      alt="PredictBag"
+      width={size}
+      height={size}
+      style={{ objectFit: "contain" }}
+    />
+  );
+}
+
+export default function BloombergLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
 
   return (
@@ -74,8 +86,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Top bar */}
       <div className="bg-[#f5a623] text-[#0a0a0a] px-4 py-1.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <PredictBagLogo size={20} />
           <span className="font-black text-[11px] tracking-widest">PREDICTBAG</span>
-          <span className="text-[#0a0a0a]/50 text-[10px]">BASE CHAIN · AGENT PREDICTION MARKET</span>
+          <span className="text-[#0a0a0a]/50 text-[10px] hidden sm:block">BASE CHAIN · AGENT PREDICTION MARKET</span>
         </div>
         <LiveClock />
       </div>
