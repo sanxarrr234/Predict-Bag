@@ -9,9 +9,9 @@ const supabase = createClient(
 Deno.serve(async () => {
   try {
     const epochEnd = new Date();
-    const epochStart = new Date(epochEnd.getTime() - 60 * 60 * 1000); // 1 hour ago
+    const epochStart = new Date(epochEnd.getTime() - 60 * 60 * 1000); 
 
-    // Get all bets placed in this epoch
+    
     const { data: epochBets } = await supabase
       .from("bets")
       .select("wallet, pool_id, is_correct, is_early, placed_at")
@@ -25,7 +25,7 @@ Deno.serve(async () => {
       );
     }
 
-    // Group by wallet
+    
     const walletMap: Record<string, {
       betsPlaced: number;
       betsWon: number;
@@ -55,7 +55,7 @@ Deno.serve(async () => {
 
       if (mining.total === 0) continue;
 
-      // Record epoch
+      
       await supabase.from("mining_epochs").upsert({
         wallet,
         epoch_start: epochStart.toISOString(),
@@ -71,7 +71,7 @@ Deno.serve(async () => {
         total_mined: mining.total,
       });
 
-      // Add mining points to agent
+      
       const { data: agent } = await supabase
         .from("agents")
         .select("mining_points")
