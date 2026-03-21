@@ -139,10 +139,10 @@ export default function PredictPage() {
             <div className={`text-2xl font-black mb-2 ${outcome === "yes" ? "text-[#4caf50]" : "text-[#f44336]"}`}>
               {outcome === "yes" ? "✓ YES — TARGET HIT" : "✗ NO — TARGET NOT REACHED"}
             </div>
-            {pool.resolved_mc && (
+            {(pool.resolved_mc as number | null) && (
               <p className="text-[11px] font-mono text-[#e8d5a3]/30">
                 Final MC: {formatMC(pool.resolved_mc as number)}
-                {pool.resolved_at && ` · ${new Date(pool.resolved_at as string).toLocaleString()}`}
+                {(pool.resolved_at as string | null) && ` · ${new Date(pool.resolved_at as string).toLocaleString()}`}
               </p>
             )}
           </div>
