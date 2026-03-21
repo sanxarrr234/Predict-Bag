@@ -97,7 +97,7 @@ export default function PredictPage() {
         <div className="border border-[#f5a623]/15 mb-5">
           <div className="border-b border-[#f5a623]/15 px-5 py-3 bg-[#f5a623]/5 flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              {pool.token_image_url && (
+              {(pool.token_image_url as string | null) && (
                 <img src={pool.token_image_url as string} alt="" width={24} height={24}
                   className="rounded-full border border-[#f5a623]/20 object-cover" />
               )}
