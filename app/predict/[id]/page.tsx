@@ -12,8 +12,12 @@ function formatMC(mc: number): string {
   return `$${mc.toFixed(0)}`;
 }
 
+function parseUTC(s: string): Date {
+  return new Date(s.replace(' ', 'T') + 'Z');
+}
+
 function timeLeft(closesAt: string): string {
-  const diff = new Date(closesAt).getTime() - Date.now();
+  const diff = parseUTC(closesAt).getTime() - Date.now();
   if (diff <= 0) return "Ended";
   const h = Math.floor(diff / 3_600_000);
   const m = Math.floor((diff % 3_600_000) / 60_000);
@@ -127,7 +131,7 @@ export default function PredictPage() {
   const isUp = (pool.direction ?? "up") === "up";
   const isResolved = pool.status === "resolved";
   const isLocked = pool.status === "locked";
-  const isExpired = new Date(pool.closes_at as string) <= new Date() && !isResolved;
+  const isExpired = parseUTC(pool.closes_at as string) <= new Date() && !isResolved;
   const outcome = pool.outcome as string | null;
 
   const totalPts = betStats.yesPts + betStats.noPts;
