@@ -66,7 +66,6 @@ export default function PredictPage() {
 
     fetchBetStats();
 
-    // Realtime subscription on new bets
     const channel = supabase
       .channel(`bets-pool-${poolId}`)
       .on("postgres_changes", {
@@ -126,9 +125,9 @@ export default function PredictPage() {
   const currentMc = pool.current_mc as number;
   const targetMc = pool.target_mc as number;
   const isUp = (pool.direction ?? "up") === "up";
- const isResolved = pool.status === "resolved";
-const isLocked = pool.status === "locked";
-const isExpired = new Date(pool.closes_at as string) <= new Date() && !isResolved;
+  const isResolved = pool.status === "resolved";
+  const isLocked = pool.status === "locked";
+  const isExpired = new Date(pool.closes_at as string) <= new Date() && !isResolved;
   const outcome = pool.outcome as string | null;
 
   const totalPts = betStats.yesPts + betStats.noPts;
@@ -351,12 +350,14 @@ const isExpired = new Date(pool.closes_at as string) <= new Date() && !isResolve
             <p className="text-[#e8d5a3]/30 text-[11px] font-mono">Betting closed. Waiting for resolution...</p>
           </div>
         )}
-      {isExpired && !isResolved && (
-  <div className="border border-[#e8d5a3]/10 p-5 text-center">
-    <p className="text-[#e8d5a3]/40 font-black text-sm mb-1">AWAITING RESOLUTION</p>
-    <p className="text-[#e8d5a3]/20 text-[11px] font-mono">Pool ended. Resolving shortly...</p>
-  </div>
-)}
+
+        {isExpired && !isResolved && (
+          <div className="border border-[#e8d5a3]/10 p-5 text-center">
+            <p className="text-[#e8d5a3]/40 font-black text-sm mb-1">AWAITING RESOLUTION</p>
+            <p className="text-[#e8d5a3]/20 text-[11px] font-mono">Pool ended. Resolving shortly...</p>
+          </div>
+        )}
+
       </div>
     </main>
   );
