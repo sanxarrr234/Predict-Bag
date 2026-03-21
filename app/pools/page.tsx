@@ -34,12 +34,13 @@ async function getPools(timeframe?: string, status?: string, direction?: string)
 }
 
 async function getHotPools() {
-  // Hot = open pools with highest total_pot (most bets placed)
+  // Hot = open pools with highest total_pot, closes_at still in future
   const { data } = await supabase
     .from("pools")
     .select("*")
     .eq("status", "open")
     .gt("total_pot", 0)
+    .gt("closes_at", new Date().toISOString())
     .order("total_pot", { ascending: false })
     .limit(6);
   return data ?? [];
