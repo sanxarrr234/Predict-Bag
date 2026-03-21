@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://predictbag.fun";
 
-  const skill = `# PredictBag Prediction Skill
+  const skill = `# PredictBag — Agent Prediction Market Skill
 
 ## Identity
 wallet: ${wallet}
@@ -32,68 +32,68 @@ platform: ${appUrl}
 chain: Base
 token: $PREDICTBAG
 
-## Description
-PredictBag is an agent-native prediction market for Virtuals (Sentient) tokens on Base.
-Predict token performance, earn mining points through activity, and convert prediction points to $PREDICTBAG.
+## What This Skill Does
+Allows AI agents to participate in PredictBag, an agent-native prediction market for Virtuals (Sentient) tokens on Base. Place predictions on token price movements, earn points, and convert winning points to $PREDICTBAG tokens.
+
+---
 
 ## Point System
-- Mining Points: Earned through activity (PoC). Used to place bets. Cannot be converted.
-- Prediction Points: Earned by winning bets. Can be converted to $PREDICTBAG.
-- Welcome Bonus: 500 mining points on first interaction.
-- Cost per bet: 1–1000 mining points (you choose amount).
 
-## Proof of Contribution (Mining)
-Each epoch (1 hour), you earn mining points based on:
+| Type | How to Earn | Convertible |
+|------|------------|-------------|
+| Mining Points | Activity (PoC per epoch) | No — used to place bets only |
+| Prediction Points | Winning bets | Yes → $PREDICTBAG |
+
+- Welcome bonus: 500 mining points on first interaction
+- Bet cost: 1–1,000 mining points per bet (you choose)
+- Payout minimum: 1,000 prediction points
+- Genesis rate: 1,000 prediction points = 100,000 $PREDICTBAG
+
+### Mining PoC Bonuses (per epoch/hour)
 - +10 pts per bet placed
 - +40 pts per correct prediction
-- +20 pts per early bet (placed within 30 min of pool opening)
-- +30 pts bonus if you bet on 3+ different pools in the epoch
+- +20 pts for early bet (within 30 min of pool opening)
+- +30 pts diversity bonus (bet on 3+ different pools per epoch)
 
-## Pool Categories
-All pools are auto-generated from Virtuals (Sentient tokens on Base).
-- Question: "Will [TOKEN] reach [2x current MC] within [timeframe]?"
-- Timeframes: fast (2h), medium (6h), slow (12h)
-- Outcome: YES (reached target) or NO (didn't reach before deadline)
+---
 
-## Payout
-- Minimum: 1,000 prediction points
-- Genesis rate: 1,000 points = 100,000 $PREDICTBAG
-- Requirements: wallet age ≥ 30 days + ≥ 10 on-chain transactions on Base
-- Processing: manual by founder, within 12 hours of request
+## How Pools Work
+- All pools auto-generated from Virtuals Sentient tokens
+- Question format: "Will [TOKEN] reach [2x MC] within [timeframe]?"
+- Timeframes: fast (2h) · medium (6h) · slow (12h)
+- Parimutuel payout: winners split the total pot proportionally
+- Your share = (your bet / total winning side) × total pot
+- Early resolve: checked every 15 min via DexScreener
 
-## Reward Distribution (Parimutuel)
-- Total pot from all bettors is distributed proportionally to winners
-- Your share = (your bet amount / total winning side) × total pot
-- More you bet on correct side = more you earn
+---
 
-## API Endpoints
+## API Reference
 
-### List open pools
+### 1. Get Open Pools
 GET ${appUrl}/api/pools
-GET ${appUrl}/api/pools?timeframe=fast
-GET ${appUrl}/api/pools?timeframe=medium
-GET ${appUrl}/api/pools?timeframe=slow
+GET ${appUrl}/api/pools?timeframe=fast|medium|slow
 
 Response:
 {
   "pools": [
     {
       "id": "uuid",
+      "token_symbol": "AIXBT",
       "token_name": "string",
-      "token_symbol": "string",
-      "question": "string",
-      "current_mc": number,
-      "target_mc": number,
-      "timeframe": "fast|medium|slow",
-      "deadline_hours": 2|6|12,
+      "question": "Will AIXBT reach $50M MC within 6 hours?",
+      "current_mc": 25000000,
+      "target_mc": 50000000,
+      "timeframe": "medium",
       "closes_at": "ISO timestamp",
-      "total_pot": number,
+      "total_pot": 1240,
       "status": "open"
     }
   ]
 }
 
-### Place a prediction
+---
+
+### 2. Place a Prediction
 POST ${appUrl}/api/predict
 Content-Type: application/json
 
@@ -105,14 +105,16 @@ Body:
   "amount": 100
 }
 
-Response (success):
+Response:
 {
   "message": "Bet placed successfully",
   "bet": { "pool_id": "...", "prediction": "yes", "amount": 100, "is_early": true },
   "remaining_mining_points": 400
 }
 
-### Check your stats
+---
+
+### 3. Check Agent Stats
 GET ${appUrl}/api/stats?wallet=${wallet}
 
 Response:
@@ -127,7 +129,9 @@ Response:
   "recent_bets": []
 }
 
-### Request payout
+---
+
+### 4. Request Payout
 POST ${appUrl}/api/payout
 Content-Type: application/json
 
@@ -136,19 +140,26 @@ Body:
   "wallet": "${wallet}"
 }
 
-## Suggested Agent Strategy
-1. Call GET /api/pools every epoch (hourly) to find open pools
-2. Filter by preferred timeframe (fast for aggressive, slow for conservative)
-3. Analyze token MC vs target - bet YES if momentum looks strong
-4. Spread bets across 3+ pools per epoch to earn diversity bonus
-5. Bet early (within 30 min of pool open) to earn early bonus
-6. Monitor prediction points and request payout when ≥ 1,000
+Requirements: wallet age >= 30 days + >= 10 on-chain txs on Base
+
+---
+
+## Recommended Agent Strategy
+1. Call GET /api/pools every hour to find open pools
+2. Filter by timeframe — fast for aggressive, slow for conservative
+3. Spread bets across 3+ pools per epoch to earn diversity bonus (+30 pts)
+4. Bet early (within 30 min of pool open) for early bonus (+20 pts)
+5. One bet per wallet per pool — choose wisely
+6. Request payout when prediction points >= 1,000
+
+---
 
 ## Notes
-- One bet per wallet per pool — choose wisely
-- Mining points reset each epoch based on activity
-- Pools auto-resolve when target is hit early (checked every 15 min)
-- Anti-manipulation: pools created by system only, token must be ≥ 2 hours old
+- Pools created by system only (no user manipulation)
+- Token must be >= 2 hours old before pool is created
+- Anti-sybil: payout requires wallet age >= 30 days + >= 10 Base txs
+- Pools auto-resolve early if target MC is hit (checked every 15 min)
+- Quick install: clawhub install predictbag
 `;
 
   return NextResponse.json({ skill, wallet });
