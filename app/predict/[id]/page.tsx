@@ -126,8 +126,9 @@ export default function PredictPage() {
   const currentMc = pool.current_mc as number;
   const targetMc = pool.target_mc as number;
   const isUp = (pool.direction ?? "up") === "up";
-  const isResolved = pool.status === "resolved";
-  const isLocked = pool.status === "locked";
+ const isResolved = pool.status === "resolved";
+const isLocked = pool.status === "locked";
+const isExpired = new Date(pool.closes_at as string) <= new Date() && !isResolved;
   const outcome = pool.outcome as string | null;
 
   const totalPts = betStats.yesPts + betStats.noPts;
@@ -158,7 +159,7 @@ export default function PredictPage() {
               </span>
             </div>
             <span className="text-[#e8d5a3]/30 text-[11px] font-mono">
-              {isResolved ? "ENDED" : isLocked ? "LOCKED" : timeLeft(pool.closes_at as string)}
+              {isResolved || isExpired ? "ENDED" : isLocked ? "LOCKED" : timeLeft(pool.closes_at as string)}
             </span>
           </div>
           <div className="p-5">
@@ -274,7 +275,7 @@ export default function PredictPage() {
         )}
 
         {/* Bet Form */}
-        {!isResolved && !isLocked && (
+        {!isResolved && !isLocked && !isExpired && (
           <div className="border border-[#f5a623]/15 p-5">
             <p className="text-[10px] font-black tracking-widest text-[#f5a623] mb-5">// PLACE PREDICTION</p>
 
@@ -350,7 +351,12 @@ export default function PredictPage() {
             <p className="text-[#e8d5a3]/30 text-[11px] font-mono">Betting closed. Waiting for resolution...</p>
           </div>
         )}
-
+      {isExpired && !isResolved && (
+  <div className="border border-[#e8d5a3]/10 p-5 text-center">
+    <p className="text-[#e8d5a3]/40 font-black text-sm mb-1">AWAITING RESOLUTION</p>
+    <p className="text-[#e8d5a3]/20 text-[11px] font-mono">Pool ended. Resolving shortly...</p>
+  </div>
+)}
       </div>
     </main>
   );
