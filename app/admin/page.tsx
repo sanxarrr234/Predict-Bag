@@ -1,18 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 const ADMIN_WALLET = process.env.NEXT_PUBLIC_ADMIN_WALLET?.toLowerCase();
+const PAGE_SIZE = 50;
 
 export default function AdminPage() {
   const [wallet, setWallet] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [tab, setTab] = useState<"payouts" | "pools" | "agents">("payouts");
+
+  // Payouts
   const [payouts, setPayouts] = useState<Record<string, unknown>[]>([]);
+
+  // Pools
   const [pools, setPools] = useState<Record<string, unknown>[]>([]);
+
+  // Agents
   const [agents, setAgents] = useState<Record<string, unknown>[]>([]);
+  const [agentSearch, setAgentSearch] = useState("");
+  const [agentPage, setAgentPage] = useState(0);
+  const [agentTotal, setAgentTotal] = useState(0);
+  const [agentLoading, setAgentLoading] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   function login() {
@@ -23,28 +35,45 @@ export default function AdminPage() {
     }
   }
 
+  async function loadPayouts() {
+    const { data } = await supabase
+      .from("payout_requests")
+      .select("*")
+      .order("requested_at", { ascending: false })
+      .limit(100);
+    setPayouts(data ?? []);
+  }
+
+  async function loadPools() {
+    const { data } = await supabase
+      .from("pools")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setPools(data ?? []);
+  }
+
+  const loadAgents = useCallback(async (search: string, page: number) => {
+    setAgentLoading(true);
+    let query = supabase
+      .from("agents")
+      .select("*", { count: "exact" })
+      .order("prediction_points", { ascending: false })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+    if (search.length > 3) {
+      query = query.ilike("wallet", `%${search}%`);
+    }
+
+    const { data, count } = await query;
+    setAgents(data ?? []);
+    setAgentTotal(count ?? 0);
+    setAgentLoading(false);
+  }, []);
+
   async function loadData() {
     setLoading(true);
-    const [p, po, a] = await Promise.all([
-      supabase
-        .from("payout_requests")
-        .select("*")
-        .order("requested_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("pools")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("agents")
-        .select("*")
-        .order("prediction_points", { ascending: false })
-        .limit(50),
-    ]);
-    setPayouts(p.data ?? []);
-    setPools(po.data ?? []);
-    setAgents(a.data ?? []);
+    await Promise.all([loadPayouts(), loadPools(), loadAgents(agentSearch, agentPage)]);
     setLoading(false);
   }
 
@@ -54,7 +83,7 @@ export default function AdminPage() {
       .from("payout_requests")
       .update({ status: "sent", tx_hash: txHash, processed_at: new Date().toISOString() })
       .eq("id", id);
-    loadData();
+    loadPayouts();
   }
 
   async function markPayoutRejected(id: string) {
@@ -83,12 +112,16 @@ export default function AdminPage() {
         processed_at: new Date().toISOString(),
       })
       .eq("id", id);
-    loadData();
+    loadPayouts();
   }
 
   useEffect(() => {
     if (authenticated) loadData();
   }, [authenticated]);
+
+  useEffect(() => {
+    if (authenticated) loadAgents(agentSearch, agentPage);
+  }, [agentSearch, agentPage, authenticated, loadAgents]);
 
   if (!authenticated) {
     return (
@@ -100,6 +133,7 @@ export default function AdminPage() {
             placeholder="Paste admin wallet..."
             value={wallet}
             onChange={(e) => setWallet(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && login()}
             className="w-full bg-surface border border-border px-4 py-3 font-mono text-sm mb-4 text-text focus:outline-none focus:border-accent"
           />
           <button
@@ -133,6 +167,11 @@ export default function AdminPage() {
               }`}
             >
               {t.toUpperCase()}
+              {t === "payouts" && payouts.filter((p) => p.status === "pending").length > 0 && (
+                <span className="ml-1.5 bg-accent text-bg px-1.5 py-0.5 text-[10px] font-black rounded-sm">
+                  {payouts.filter((p) => p.status === "pending").length}
+                </span>
+              )}
             </button>
           ))}
           <button
@@ -149,7 +188,7 @@ export default function AdminPage() {
             <h2 className="font-bold mb-4">
               PAYOUT REQUESTS
               <span className="ml-2 text-xs font-mono text-dim">
-                ({payouts.filter((p) => p.status === "pending").length} pending)
+                ({payouts.filter((p) => p.status === "pending").length} pending · {payouts.length} total)
               </span>
             </h2>
             <div className="space-y-3">
@@ -173,12 +212,13 @@ export default function AdminPage() {
         {/* POOLS TAB */}
         {tab === "pools" && (
           <div>
-            <h2 className="font-bold mb-4">POOLS</h2>
+            <h2 className="font-bold mb-4">POOLS <span className="text-xs font-mono text-dim">({pools.length} shown)</span></h2>
             <div className="overflow-x-auto">
               <table className="w-full text-xs font-mono">
                 <thead>
                   <tr className="border-b border-border text-dim">
                     <th className="text-left py-3 pr-4">TOKEN</th>
+                    <th className="text-left py-3 pr-4">DIR</th>
                     <th className="text-left py-3 pr-4">TIMEFRAME</th>
                     <th className="text-left py-3 pr-4">STATUS</th>
                     <th className="text-left py-3 pr-4">POT</th>
@@ -191,13 +231,17 @@ export default function AdminPage() {
                     <tr key={pool.id as string} className="border-b border-border/50 hover:bg-surface">
                       <td className="py-3 pr-4">
                         <span className="text-text font-bold">{pool.token_symbol as string}</span>
-                        <span className="text-dim ml-1">{pool.token_name as string}</span>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className={pool.direction === "up" ? "text-green-400" : "text-red-400"}>
+                          {pool.direction === "up" ? "↑" : "↓"}
+                        </span>
                       </td>
                       <td className="py-3 pr-4 text-dim">{(pool.timeframe as string).toUpperCase()}</td>
                       <td className="py-3 pr-4">
                         <span className={
                           pool.status === "open" ? "text-accent" :
-                          pool.status === "resolved" ? "text-dim" : "text-warn"
+                          pool.status === "resolved" ? "text-dim" : "text-yellow-400"
                         }>
                           {(pool.status as string).toUpperCase()}
                         </span>
@@ -205,7 +249,7 @@ export default function AdminPage() {
                       <td className="py-3 pr-4 text-text">{(pool.total_pot as number).toLocaleString()}</td>
                       <td className="py-3 pr-4">
                         {pool.outcome
-                          ? <span className={pool.outcome === "yes" ? "text-accent" : "text-warn"}>{(pool.outcome as string).toUpperCase()}</span>
+                          ? <span className={pool.outcome === "yes" ? "text-green-400" : "text-red-400"}>{(pool.outcome as string).toUpperCase()}</span>
                           : <span className="text-dim">—</span>
                         }
                       </td>
@@ -223,7 +267,22 @@ export default function AdminPage() {
         {/* AGENTS TAB */}
         {tab === "agents" && (
           <div>
-            <h2 className="font-bold mb-4">AGENTS ({agents.length})</h2>
+            <div className="flex items-center justify-between mb-4 gap-4">
+              <h2 className="font-bold">
+                AGENTS
+                <span className="ml-2 text-xs font-mono text-dim">
+                  ({agentTotal.toLocaleString()} total)
+                </span>
+              </h2>
+              <input
+                type="text"
+                placeholder="Search by wallet address..."
+                value={agentSearch}
+                onChange={(e) => { setAgentSearch(e.target.value); setAgentPage(0); }}
+                className="bg-surface border border-border px-4 py-2 font-mono text-xs text-text w-72 focus:outline-none focus:border-accent placeholder:text-dim"
+              />
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-xs font-mono">
                 <thead>
@@ -237,14 +296,18 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {agents.map((agent) => {
+                  {agentLoading ? (
+                    <tr><td colSpan={6} className="py-8 text-center text-dim">LOADING...</td></tr>
+                  ) : agents.length === 0 ? (
+                    <tr><td colSpan={6} className="py-8 text-center text-dim">NO AGENTS FOUND</td></tr>
+                  ) : agents.map((agent) => {
                     const winRate = (agent.total_bets as number) > 0
                       ? (((agent.total_wins as number) / (agent.total_bets as number)) * 100).toFixed(0)
                       : "0";
                     return (
                       <tr key={agent.id as string} className="border-b border-border/50 hover:bg-surface">
-                        <td className="py-3 pr-4 text-text">
-                          {(agent.wallet as string).slice(0, 6)}...{(agent.wallet as string).slice(-4)}
+                        <td className="py-3 pr-4 text-text font-mono">
+                          {(agent.wallet as string).slice(0, 8)}...{(agent.wallet as string).slice(-6)}
                         </td>
                         <td className="py-3 pr-4 text-accent">{(agent.mining_points as number).toLocaleString()}</td>
                         <td className="py-3 pr-4 text-text">{(agent.prediction_points as number).toLocaleString()}</td>
@@ -262,6 +325,34 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {agentTotal > PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                <span className="text-xs font-mono text-dim">
+                  Showing {agentPage * PAGE_SIZE + 1}–{Math.min((agentPage + 1) * PAGE_SIZE, agentTotal)} of {agentTotal.toLocaleString()}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAgentPage((p) => Math.max(0, p - 1))}
+                    disabled={agentPage === 0}
+                    className="px-4 py-2 text-xs font-mono border border-border text-dim hover:border-accent hover:text-accent disabled:opacity-30 transition-colors"
+                  >
+                    ← PREV
+                  </button>
+                  <span className="px-4 py-2 text-xs font-mono text-dim border border-border">
+                    {agentPage + 1} / {Math.ceil(agentTotal / PAGE_SIZE)}
+                  </span>
+                  <button
+                    onClick={() => setAgentPage((p) => p + 1)}
+                    disabled={(agentPage + 1) * PAGE_SIZE >= agentTotal}
+                    className="px-4 py-2 text-xs font-mono border border-border text-dim hover:border-accent hover:text-accent disabled:opacity-30 transition-colors"
+                  >
+                    NEXT →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -283,7 +374,7 @@ function PayoutRow({
   const txHashStr = payout.tx_hash as string | null;
 
   return (
-    <div className={`border p-4 ${isPending ? "border-accent/30" : "border-border"}`}>
+    <div className={`border p-4 ${isPending ? "border-accent/30 bg-accent/[0.02]" : "border-border"}`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="font-mono text-sm text-text">{payout.wallet as string}</div>
@@ -295,7 +386,7 @@ function PayoutRow({
             Wallet: {payout.wallet_age_days as number} days · {payout.wallet_tx_count as number} txs
           </div>
           <div className="font-mono text-xs text-dim">
-            {new Date(payout.requested_at as string).toLocaleString()}
+            {payout.requested_at ? new Date(payout.requested_at as string).toLocaleString() : "—"}
           </div>
         </div>
 
@@ -318,13 +409,13 @@ function PayoutRow({
               </button>
               <button
                 onClick={() => onRejected(payout.id as string)}
-                className="px-4 py-2 border border-warn text-warn text-xs font-bold hover:bg-warn/10"
+                className="px-4 py-2 border border-red-400 text-red-400 text-xs font-bold hover:bg-red-400/10"
               >
                 REJECT
               </button>
             </>
           ) : (
-            <span className={`text-xs font-mono ${payout.status === "sent" ? "text-accent" : "text-warn"}`}>
+            <span className={`text-xs font-mono ${payout.status === "sent" ? "text-accent" : "text-red-400"}`}>
               {(payout.status as string).toUpperCase()}
               {txHashStr && (
                 <a
