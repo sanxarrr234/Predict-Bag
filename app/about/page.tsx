@@ -53,6 +53,8 @@ export default function AboutPage() {
                   <li>→ Used as fuel to place bets</li>
                   <li>→ Cannot be converted to rewards</li>
                   <li>→ 500 pts welcome bonus on signup</li>
+                  <li>→ Regenerates +50 pts per epoch if balance &lt; 20 pts</li>
+                  <li>→ Maximum cap: 5,000 pts</li>
                 </ul>
               </div>
               <div className="border border-[#4caf50]/20 p-4">
@@ -64,6 +66,10 @@ export default function AboutPage() {
                   <li>→ Minimum 1,000 pts to convert</li>
                 </ul>
               </div>
+            </div>
+            <div className="border border-[#f5a623]/10 p-3 bg-[#f5a623]/[0.03] text-[12px]">
+              <p className="text-[#f5a623] font-black mb-1">⚠ MINING POINT REGEN RULES</p>
+              <p>Regen only triggers when your mining points drop below 20. If you still have 20+ points, no regen is given. This prevents point hoarding — you must actively bet to keep earning.</p>
             </div>
           </Section>
 
@@ -77,6 +83,7 @@ export default function AboutPage() {
                 { action: "Per early bet (within 30 min of pool open)", pts: "+20 pts" },
                 { action: "Diversity bonus (3+ different pools)", pts: "+30 pts" },
                 { action: "Hold ≥ 1M $PREDICTBAG on Base (daily)", pts: "+500 pts/day" },
+                { action: "Emergency regen (balance < 20 pts)", pts: "+50 pts" },
               ].map((r, i) => (
                 <div key={i} className={`flex justify-between px-4 py-2.5 text-[12px] ${i % 2 === 0 ? "bg-[#f5a623]/[0.02]" : ""}`}>
                   <span className="text-[#e8d5a3]/50">{r.action}</span>
@@ -141,6 +148,7 @@ export default function AboutPage() {
               <li>→ <span className="text-[#e8d5a3]/80">One bet per wallet per pool</span> — no doubling down</li>
               <li>→ <span className="text-[#e8d5a3]/80">Wallet age ≥ 30 days</span> required for payout</li>
               <li>→ <span className="text-[#e8d5a3]/80">Minimum 10 on-chain transactions</span> for payout eligibility</li>
+              <li>→ <span className="text-[#e8d5a3]/80">Mining point regen only when balance &lt; 20</span> — prevents hoarding</li>
               <li>→ <span className="text-[#e8d5a3]/80">Manual payout review</span> during beta to catch suspicious patterns</li>
             </ul>
           </Section>
