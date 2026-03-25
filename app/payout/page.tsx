@@ -16,7 +16,9 @@ export default function PayoutPage() {
     setChecked(false);
     setResult(null);
 
-    const res = await fetch(`/api/stats?wallet=${wallet}`);
+    // FIX: fetch dari /api/payout (GET) bukan /api/stats
+    // supaya wallet_age_days dan wallet_tx_count diambil fresh dari Basescan
+    const res = await fetch(`/api/payout?wallet=${wallet}`);
     const data = await res.json();
     setAgentData(data);
     setChecked(true);
@@ -79,7 +81,7 @@ export default function PayoutPage() {
               disabled={loading || !wallet}
               className="px-5 py-3 border border-accent text-accent text-sm font-mono hover:bg-accent/10 transition-colors disabled:opacity-30"
             >
-              CHECK
+              {loading ? "..." : "CHECK"}
             </button>
           </div>
         </div>
