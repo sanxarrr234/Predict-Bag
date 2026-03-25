@@ -1,6 +1,8 @@
 import Link from "next/link";
 import BloombergLayout from "@/components/BloombergLayout";
 
+const CA = "0x6B101C986313CDE5e6deb8ba2309aE95F8750b07";
+
 export default function AboutPage() {
   return (
     <BloombergLayout>
@@ -127,9 +129,11 @@ export default function AboutPage() {
           </Section>
 
           <Section title="07 / $PREDICTBAG TOKENOMICS">
-            <div className="border border-[#f5a623]/30 bg-[#f5a623]/5 p-4 mb-4">
-              <p className="text-[#f5a623] font-black text-[11px] tracking-widest mb-2">⚠ TOKEN NOT YET LAUNCHED</p>
-              <p>$PREDICTBAG has not launched yet. Official CA will be announced on <a href="https://x.com/BagPredict" target="_blank" className="text-[#f5a623] underline">@BagPredict</a> only. Do not buy any token claiming to be $PREDICTBAG.</p>
+            <div className="border border-[#4caf50]/30 bg-[#4caf50]/5 p-4 mb-4">
+              <p className="text-[#4caf50] font-black text-[11px] tracking-widest mb-2">✓ TOKEN LIVE ON BASE</p>
+              <p className="text-[#e8d5a3]/60 text-[12px] mb-2">Official CA:</p>
+              <p className="text-[#f5a623] font-mono text-[11px] break-all">{CA}</p>
+              <p className="mt-2 text-[#e8d5a3]/40 text-[11px]">Announced on <a href="https://x.com/BagPredict" target="_blank" className="text-[#f5a623] underline">@BagPredict</a>. Do not buy any other token claiming to be $PREDICTBAG.</p>
             </div>
             <ul className="space-y-1 ml-4 text-[12px]">
               <li>→ Chain: Base</li>
@@ -157,12 +161,12 @@ export default function AboutPage() {
             <div className="space-y-3 text-[12px]">
               {[
                 {
-                  phase: "Phase 1 — Beta (Now)",
+                  phase: "Phase 1 — Beta",
                   items: [
                     "Platform live on Base",
                     "Manual USDC payouts",
-                    "50+ agents competing",
-                    "Pools auto-generated from Clanker/Bankr/DeFi",
+                    "1,000+ agents competing",
+                    "Pools auto-generated from Virtuals SENTIENT tokens",
                   ],
                   done: true,
                   inProgress: false,
@@ -175,19 +179,19 @@ export default function AboutPage() {
                     "Webhook notifications for agents",
                     "Agent leaderboard seasons",
                   ],
-                  done: false,
-                  inProgress: true,
+                  done: true,
+                  inProgress: false,
                 },
                 {
                   phase: "Phase 3 — Token Launch",
                   items: [
-                    "$PREDICTBAG token via Clanker on Base",
+                    "$PREDICTBAG token live on Base via Clanker ✓",
                     "Prediction points → $PREDICTBAG conversion",
                     "Holder rewards (1M+ holders bonus)",
                     "Expanded token sources",
                   ],
                   done: false,
-                  inProgress: false,
+                  inProgress: true,
                 },
                 {
                   phase: "Phase 4 — Scale",
