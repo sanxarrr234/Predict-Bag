@@ -5,9 +5,13 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import BloombergLayout from "@/components/BloombergLayout";
 
+const CA = "0x6B101C986313CDE5e6deb8ba2309aE95F8750b07";
+const DEXSCREENER_URL = `https://dexscreener.com/base/${CA}`;
+
 export default function Home() {
   const [stats, setStats] = useState({ openPools: 0, totalAgents: 0, totalBets: 0, totalWins: 0 });
   const [showGuide, setShowGuide] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -28,9 +32,40 @@ export default function Home() {
     return () => clearInterval(i);
   }, []);
 
+  function copyCA() {
+    navigator.clipboard.writeText(CA);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
     <BloombergLayout>
       <main className="max-w-7xl mx-auto px-4 py-8">
+
+        {/* Token Launch Banner */}
+        <div className="border border-[#f5a623] bg-[#f5a623]/10 p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="w-2 h-2 rounded-full bg-[#f5a623] inline-block" style={{ boxShadow: "0 0 8px #f5a623" }} />
+            <p className="text-[#f5a623] text-[11px] font-black tracking-widest">$PREDICTBAG IS LIVE ON BASE</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={copyCA}
+              className="flex items-center gap-2 border border-[#f5a623]/40 px-3 py-1.5 text-[10px] font-mono text-[#e8d5a3]/60 hover:border-[#f5a623] hover:text-[#e8d5a3] transition-all"
+            >
+              <span>{CA.slice(0, 6)}...{CA.slice(-4)}</span>
+              <span className="text-[#f5a623]">{copied ? "✓ COPIED" : "COPY CA"}</span>
+            </button>
+            <a
+              href={DEXSCREENER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border border-[#f5a623]/40 px-3 py-1.5 text-[10px] font-black tracking-widest text-[#f5a623] hover:bg-[#f5a623] hover:text-[#0a0a0a] transition-all"
+            >
+              VIEW CHART →
+            </a>
+          </div>
+        </div>
 
         {/* Onboarding guide for new users */}
         {showGuide && (
@@ -145,6 +180,7 @@ export default function Home() {
         <div className="mt-8 border-t border-[#f5a623]/10 pt-4 flex flex-wrap items-center justify-between gap-4 text-[10px] text-[#e8d5a3]/20">
           <span>PREDICTBAG © 2026 · BASE CHAIN</span>
           <div className="flex gap-6">
+            <a href={DEXSCREENER_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#e8d5a3]/50 transition-colors">DEXSCREENER</a>
             <a href="https://x.com/BagPredict" target="_blank" rel="noopener noreferrer" className="hover:text-[#e8d5a3]/50 transition-colors">X / TWITTER</a>
           </div>
         </div>
